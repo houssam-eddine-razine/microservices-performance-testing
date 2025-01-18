@@ -1,0 +1,96 @@
+services:
+
+  consul:
+    image: consul:1.15.4
+    container_name: consulA
+    ports:
+      - "8500:8500"
+    command: consul agent -dev -client=0.0.0.0
+    networks:
+      - app-network
+
+  mysql:
+    image: mysql:8
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 0666130598
+      MYSQL_DATABASE: voituredb
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+
+  service-voiture:
+    build:
+      context: ./service-voiture
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/voituredb
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=06661
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_APPLICATION_NAME=service-voiture
+      - SERVER_PORT=8081
+      - SPRING_CLOUD_CONSUL_HOST=consulA
+      - SPRING_CLOUD_CONSUL_PORT=8500
+    depends_on:
+      - mysql
+      - consul
+    networks:
+      - app-network
+
+  serservice-client-feign:
+    build:
+      context: ./serservice-client-feign
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_APPLICATION_NAME=serservice-client-feign
+      - SERVER_PORT=8084
+      - SPRING_CLOUD_CONSUL_HOST=consulA
+      - SPRING_CLOUD_CONSUL_PORT=8500
+    depends_on:
+      - consul
+    networks:
+      - app-network
+
+  service-client-resttemplate:
+    build:
+      context: ./service-client-resttemplate
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_APPLICATION_NAME=service-client-resttemplate
+      - SERVER_PORT=8083
+      - SPRING_CLOUD_CONSUL_HOST=consulA
+      - SPRING_CLOUD_CONSUL_PORT=8500
+    depends_on:
+      - consul
+    networks:
+      - app-network
+
+  service-client-webclient:
+    build:
+      context: ./service-client-webclient
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_APPLICATION_NAME=service-client-webclient
+      - SERVER_PORT=8085
+      - SPRING_CLOUD_CONSUL_HOST=consulA
+      - SPRING_CLOUD_CONSUL_PORT=8500
+    depends_on:
+      - consul
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
